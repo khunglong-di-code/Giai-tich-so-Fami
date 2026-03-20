@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import math
 import sympy as sp
-
+from sympy.calculus.util import continuous_domain
 def create_interval(a, b, interval_type:str = None):
     # Khởi tạo khoảng a,b
     """
@@ -60,5 +60,6 @@ class Function:
         #kiểm tra xem a,b có phải là khoảng cách li nghiệm không
         if self.is_opposite_signs(a, b) and self.is_continuous(a, b, interval_type) and self.is_monotonic(a, b, interval_type):
             return True
-        
+        return False
+    
     
