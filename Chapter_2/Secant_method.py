@@ -113,8 +113,8 @@ class daycung_oop:
 expr = "2**x - 5*x + sin(x)"
 a = -2.2
 b = -2.15
-eps = 0.0005
-digits = 6   # tùy chọn số chữ số sau dấu phẩy
+eps = 5e-7
+digits = 8   # tùy chọn số chữ số sau dấu phẩy
 
 solver = daycung_oop(a, b, eps, expr, digits)
 nghiem = solver.Solve()

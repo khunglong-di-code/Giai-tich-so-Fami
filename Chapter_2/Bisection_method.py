@@ -1,113 +1,182 @@
-from string import digits
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
-import Core_func as core
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import math
-import sympy as sp
+from sympy import *
+import sys
+import pandas as pd
 
-class BisectionMethodFrame:
+#===================================================================================
+#
+#   Code cho PP chia đôi. 
+#       * Input: f(x) = 0; khoảng cách ly (a, b); sai số epsilon
+#       * Output: Nghiệm gần đúng và bảng lặp
+#       * Phương pháp: Chia đôi (Bisection)
+#       * Sai số: solve_ver1 dùng Hậu nghiệm |x_n - x_{n-1}| ≤ ε (nếu tính sai số tương đối thì bắt buộc phải dùng sai số hậu nghiệm)
+#                 solve_ver2 dùng Hậu nghiệm (b - a) ≤ ε (đây là điều kiện chặt hơn và tốt hơn, nên ưu tiên dùng)
+#       * Ghi chú: Yêu cầu f(a)*f(b) < 0 để đảm bảo hội tụ
+#
+#===================================================================================
 
-    def __init__(self):
-        self.df = pd.DataFrame(
-            columns=["k", "a", "b", "c", "f(a)", "f(b)", "f(c)", "interval_length"]
-        )
 
-    def add_row(self, n, a, b, c, fa, fb, fc):
-        new_row = {
-            "n": n,
-            "a": a,
-            "b": b,
-            "c": c,
-            "f(a)": fa,
-            "f(b)": fb,
-            "f(c)": fc,
-            "interval_length": b - a
-        }
-
-        self.df.loc[len(self.df)] = new_row
-
-    def print(self, digits=6):
-        print(self.df.round(digits))
+class Bisection_class:
+    def __init__(self, expr, a, b, eps):
+        self.expr = sympify(expr)
+        self.f = lambdify(symbols("x"), self.expr, "math")
+        self.a = a
+        self.b = b
+        self.eps = eps
+        self.rows = [] # Kết quả các lần lặp
+        self.df = None
     
-def BisectionMethod_pri(f, a, b, eps,digits=6, verbose=True):
-    assert isinstance(f, core.Function), "f phải là object của class Function"
-    assert a < b, "cần a < b"
-    assert eps > 0, "eps phải > 0"
-    assert f.is_root_interval(a, b, interval_type="open"), "a,b phải là khoảng cách li nghiệm"
+    # Method theo Sai số: Hậu nghiệm |x_n - x_{n-1}| ≤ ε (cái này thường không chặt bằng cái thứ 2)
+    def solve_ver1(self):
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        self.rows = []
+        self.df = None
 
-    frame = BisectionMethodFrame()
+        if f(a) == 0:
+            print(f"Phương trình có nghiệm đúng x = {a}")
+            return a
 
-    n = math.ceil(math.log2((b - a) / eps))
+        if f(b) == 0:
+            print(f"Phương trình có nghiệm đúng x = {b}")
+            return b
 
-    for i in range(n):
-        x = (a + b) / 2
-        fa = f.evaluate(a)
-        fb = f.evaluate(b)
-        fx = f.evaluate(x)
+        if f(a) * f(b) >= 0:
+            print("Khoảng cách ly không hợp lệ")
+            return None
+        
+        x_old = (a + b) / 2
+        k = 1
 
-        frame.add_row(i, a, b, x, fa, fb, fx)
+        while True:
+            # Tính f(x_old) và xác định dấu của nó cho bảng
+            fx_old = f(x_old)
 
-        if fx == 0:
-            if verbose:
-                frame.print()
-            return x, frame.df
+            if fx_old > 0:
+                sign_fx = "+"
+            elif fx_old < 0:
+                sign_fx = "-"
+            else:
+                sign_fx = "0"
 
-        elif f.is_opposite_signs(a, x):
-            b = x
-        else:
-            a = x
+            self.rows.append({
+                "k": k,
+                "a(k-1)": a,
+                "b(k-1)": b,
+                "xk": x_old,
+                "sgn(f(xk))": sign_fx })
 
-    root = (a + b) / 2
+            # phần thuật toán chính (tính sai số tuyệt đối)
 
-    if verbose:
-        frame.print(digits)
+            if f(a) * f(x_old) < 0:
+                b = x_old
+            elif f(a) * f(x_old) > 0:
+                a = x_old
+            else:
+                print(f"Phương trình có nghiệm đúng x = {x_old}")
+                return x_old
+    
+            x_new = (a + b) / 2
+            delta = abs(x_new - x_old)
 
-    return root, frame.df
+            if delta <= eps:
+                self.df = pd.DataFrame(self.rows) 
+                return x_new
+            
+            x_old = x_new        
+            k += 1
 
-def BisectionMethod_post(f, a, b, eps,digits=6 ,verbose=True):
-    assert isinstance(f, core.Function), "f phải là object của class Function"
-    assert a < b, "cần a < b"
-    assert eps > 0, "eps phải > 0"
-    assert f.is_root_interval(a, b, interval_type="open"), "a,b phải là khoảng cách li nghiệm"
+    # Method theo Sai số: Hậu nghiệm |x_n - x_{n-1}| ≤ ε
+    def solve_ver2(self):
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
 
-    frame = BisectionMethodFrame()
-    i = 0
+        self.rows = []
+        self.df = None
 
-    while True:
-        x = (a + b) / 2
-        fa = f.evaluate(a)
-        fb = f.evaluate(b)
-        fx = f.evaluate(x)
+        # Kiểm tra đầu vào
+        if f(a) == 0:
+            return a
+        if f(b) == 0:
+            return b
+        if f(a) * f(b) >= 0:
+            print("Khoảng cách ly không hợp lệ")
+            return None
 
-        frame.add_row(i, a, b, x, fa, fb, fx)
+        k = 1
 
-        if fx == 0:
-            if verbose:
-                frame.print()
-            return x, frame.df
+        while (b - a) > eps:
+            x = (a + b) / 2
+            fx = f(x)
 
-        elif f.is_opposite_signs(a, x):
-            b = x
-        else:
-            a = x
+            sign_fx = "+" if fx > 0 else "-" if fx < 0 else "0"
 
-        if abs(b - a) < eps:
-            break
+            self.rows.append({
+                "k": k,
+                "a(k)": a,
+                "b(k)": b,
+                "xk": x,
+                "sgn(f(xk))": sign_fx
+            })
 
-        i += 1
+            if fx == 0:
+                return x
+            elif f(a) * fx < 0:
+                b = x
+            else:
+                a = x
 
-    root = (a + b) / 2
+            k += 1
 
-    if verbose:
-        frame.print(digits)
+        x_final = (a + b) / 2
+        self.df = pd.DataFrame(self.rows)
+        return x_final
 
-    return root, frame.df
 
 
+
+
+""" ===================================================================================
+
+Mẫu chạy chương trình
+
+# Đặt biểu thức
+expr = "x**3 - x - 2"
+
+# Đặt khoảng cách ly [a, b]
+a = 1
+b = 2
+
+# Đặt sai số (0.5 x 10^-3)
+eps = 5e-4
+
+# Tạo đối tượng
+solver = Bisection_class(expr, a, b, eps)
+
+# Giải phương trình
+root = solver.solve()
+
+# In kết quả
+print("Nghiệm gần đúng:", root)
+
+# In bảng lặp với làm tròn 6 chữ số sau dấu phẩy
+print("\nBảng các lần lặp:")
+print(solver.df.round(6))
+
+ =================================================================================== """
+
+expr = "x**3 - 5"
+a = 1
+b = 2
+eps = 5e-6
+
+solver = Bisection_class(expr, a, b, eps)
+root = solver.solve_ver2()
+
+print("Nghiệm gần đúng:", root)
+print("\nBảng các lần lặp:")
+print(solver.df.round(6))
