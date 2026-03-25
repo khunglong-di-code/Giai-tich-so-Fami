@@ -9,6 +9,30 @@ import pandas as pd
 # Output: nghiệm gần đúng và bảng lặp
 # ===================================================================================
 
+# NOTE:
+# Dùng kiểm tra dấu gần đúng (numeric) thay cho solveset().
+# → Hoạt động tốt hơn với các hàm siêu việt: exp, sin, cos, tan, log...
+#   (những trường hợp Sympy khó giải đạo hàm tường minh).
+#
+# → Không ảnh hưởng đáng kể với:
+#   - đa thức
+#   - phân thức đơn giản
+#   - các bài Sympy giải được trước đó
+#
+# Lý do:
+# solveset() chỉ hiệu quả khi phương trình đạo hàm đơn giản,
+# còn với các hàm như:
+#   E**x - cos(2*x), sin(x) - x/2, exp(x) + log(x) - 3, x - tan(x)
+# thì thường "không kết luận được", khiến code loại sai khoảng nghiệm.
+#
+# Đánh đổi:
+# chuyển từ kiểm tra ký hiệu (exact) → kiểm tra số học (approx),
+# nhưng đây là cách phổ biến và chấp nhận được trong giải tích số.
+#
+# Kết quả:
+# code chạy ổn định hơn với nhiều loại hàm (đặc biệt hàm siêu việt).
+# ===================================================================================
+
 class Secant_class:
     def __init__ (self, expr, a, b, eps):
 
@@ -70,7 +94,28 @@ class Secant_class:
 
         # Trường hợp Sympy không giải được rõ ràng
         return None
-    
+
+    def __get_sign_numeric(self, expr, a, b, N=1000, tol=1e-12):
+        g = lambdify(self.x, expr, "numpy")
+        xs = np.linspace(a, b, N + 2)[1:-1]
+
+        try:
+            vals = np.array(g(xs), dtype=float)
+        except Exception:
+            return None
+
+        if np.any(np.isnan(vals)) or np.any(np.isinf(vals)):
+            return None
+
+        if np.any(np.abs(vals) <= tol):
+            return 0
+
+        if np.all(vals > 0):
+            return 1
+        if np.all(vals < 0):
+            return -1
+        return 0
+
     def __get_sign(self, expr, a, b):
         """
         Xác định dấu của expr trên khoảng (a,b), sau khi kiểm tra expr không đổi dấu.
@@ -130,23 +175,20 @@ class Secant_class:
 
         f = self.f
 
-        # Nếu a là nghiệm đúng thì trả luôn nghiệm
         if f(a) == 0:
             print(f"Phương trình có nghiệm đúng x = {a}")
             return a
 
-        # Nếu b là nghiệm đúng thì trả luôn nghiệm
         if f(b) == 0:
             print(f"Phương trình có nghiệm đúng x = {b}")
             return b
 
-        # Kiểm tra điều kiện khoảng cách ly: f(a)*f(b) phải âm
         if f(a) * f(b) >= 0:
             print("Khoảng cách ly không hợp lệ: f(a)*f(b) >= 0")
             return None
 
-        # Kiểm tra f'(x) có không đổi dấu trên (a,b) không
-        sign_df = self.__get_sign(self.expr_df, a, b)
+        # Kiểm tra f'(x)
+        sign_df = self.__get_sign_numeric(self.expr_df, a, b)
         if sign_df == 0:
             print("f'(x) không giữ dấu nghiêm ngặt trên (a,b)")
             return None
@@ -154,8 +196,8 @@ class Secant_class:
             print("Không kết luận chắc chắn được dấu của f'(x) trên (a,b)")
             return None
 
-        # Kiểm tra f''(x) có không đổi dấu trên (a,b) không
-        sign_d2f = self.__get_sign(self.expr_d2f, a, b)
+        # Kiểm tra f''(x)
+        sign_d2f = self.__get_sign_numeric(self.expr_d2f, a, b)
         if sign_d2f == 0:
             print("f''(x) không giữ dấu nghiêm ngặt trên (a,b)")
             return None
@@ -163,17 +205,15 @@ class Secant_class:
             print("Không kết luận chắc chắn được dấu của f''(x) trên (a,b)")
             return None
 
-        # Nếu qua hết các điều kiện thì khoảng hợp lệ
         return True
-
     def show_derivative_info(self):
         """
         In thông tin dấu của f'(x) và f''(x) trên khoảng (a,b).
         Hàm này chỉ để quan sát, không phải hàm kiểm tra chính.
         """
 
-        sign_df = self.__get_sign(self.expr_df, self.a, self.b)
-        sign_d2f = self.__get_sign(self.expr_d2f, self.a, self.b)
+        sign_df = self.__get_sign_numeric(self.expr_df, self.a, self.b)
+        sign_d2f = self.__get_sign_numeric(self.expr_d2f, self.a, self.b)
 
         if sign_df == 1:
             print("f'(x) > 0 trên (a,b)")
@@ -368,4 +408,7 @@ print("Kết quả:", root)
 # In bảng lặp với làm tròn chữ số sau dấu phẩy
 print("\nBảng các lần lặp:")
 pd.set_option('display.float_format', '{:.4f}'.format)
-print(solver.df.round(4))
+if solver.df is not None:
+    print(solver.df.round(4))
+else:
+    print("Không có bảng lặp vì thuật toán chưa chạy hoặc đã dừng sớm.")
