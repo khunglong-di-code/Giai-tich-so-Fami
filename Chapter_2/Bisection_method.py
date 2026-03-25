@@ -44,7 +44,7 @@ class Bisection_class:
             return b
 
         if f(a) * f(b) >= 0:
-            print("Khoảng cách ly không hợp lệ")
+            print("Khoảng cách li nghiệm không hợp lệ")
             return None
         
         x_old = (a + b) / 2
@@ -165,18 +165,21 @@ print("Nghiệm gần đúng:", root)
 
 # In bảng lặp với làm tròn 6 chữ số sau dấu phẩy
 print("\nBảng các lần lặp:")
+pd.set_option('display.float_format', '{:.6f}'.format)
 print(solver.df.round(6))
-
+# Hằng số e trong sympy là exp(1) hoặc E, nên nếu muốn dùng e trong biểu thức thì phải viết là exp(1) hoặc E, không được viết là e như trong math. Ví dụ: expr = "exp(1)**x - cos(2*x)" hoặc expr = "E**x - cos(2*x)"
  =================================================================================== """
 
-expr = "x**3 - 5"
-a = 1
-b = 2
-eps = 5e-6
+expr = "x**5 - 3*x**3 + 2*x - x + 5"
+a = -2
+b = -1.8
+eps = 5e-4
 
 solver = Bisection_class(expr, a, b, eps)
 root = solver.solve_ver2()
 
 print("Nghiệm gần đúng:", root)
 print("\nBảng các lần lặp:")
-print(solver.df.round(6))
+
+pd.set_option('display.float_format', '{:.3f}'.format)
+print(solver.df.round(3))
