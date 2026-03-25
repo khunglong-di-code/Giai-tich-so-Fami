@@ -244,12 +244,73 @@ class Secant_class:
 
             if abs(f(x_new)) / m1 <= eps:
                 self.df = pd.DataFrame(self.rows)
-                return f"nghiệm của gần đúng phương trình là x = {x_new}"
+                return x_new
 
             else:
                 x_old = x_new
                 k += 1
 
+# SỬ dụng sai số hậu nghiệm/ sai só theo hai lần lặp |(M1 - m1)/m1| * |x_n - x_{n-1}| ≤ ε để dừng thuật toán.
+# Nên ưu tiên sử dụng loại sai số này trong nhiều trường hợp vì nó thường chặt hơn sai số hậu nghiệm đơn thuần.
+
+    def solve_ver2(self):
+        
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        f1 = self.f1
+        f2 = self.f2    
+        self.rows = []
+        self.df = None
+
+        # Kiểm tra điều kiện đầu vào
+        check = self.__check(a, b)
+        if check is None:       
+            print("Khoảng không hợp lệ, không thể giải.")
+            return None
+        if check is not True:
+            return check # Trả về nghiệm đúng nếu có
+        
+        if f(a) * f2(a) > 0:
+            x_old = a 
+            d = b #điểm neo
+        else:
+            x_old = b
+            d = a #điểm neo
+
+        # Lưu giá trị ban đầu x0
+        self.rows.append({
+            "k": 0,
+            "x_k": x_old,
+            "|x_k - x_{k-1}|": 0
+        })
+
+        k = 1
+
+        m1 = min(abs(f1(a)), abs(f1(b)))
+        M1 = max(abs(f1(a)), abs(f1(b)))
+
+        xi = (M1 - m1)/ m1 
+        bounded = eps / xi
+
+
+        while(True):
+            x_new = x_old - f(x_old) * (x_old - d) / (f(x_old) - f(d))
+
+            self.rows.append({
+                "k": k,
+                "x_k": x_new,
+                "|x_new - x_old|": abs(x_new - x_old)
+            })
+
+            if abs(x_new - x_old) <= bounded:
+                self.df = pd.DataFrame(self.rows)
+                return x_new
+
+            else:
+                x_old = x_new
+                k += 1
 
 """ ===================================================================================
 
@@ -287,3 +348,4 @@ print(solver.df.round(6))
 # Ví dụ: expr = "exp(1)**x - cos(2*x)" hoặc expr = "E**x - cos(2*x)"
 
 =================================================================================== """
+
