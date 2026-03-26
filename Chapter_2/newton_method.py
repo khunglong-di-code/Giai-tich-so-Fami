@@ -1,123 +1,436 @@
-#===================================================================================
-#
-#   Code cho phương pháp Dây cung 
-#       * Input: f(x) trong pt f(x) = 0; khoảng cách li ban đầu (a, b); sai số epsilon
-#       * Output: Nghiệm PT f(x) = 0;
-#       
-#===================================================================================
 from math import *
 from sympy import *
-import sys
+import numpy as np
+import pandas as pd
 
-#===================================================================================
-# Phần thuật toán chính
-class daycung_oop:
-#{
-    def __init__(self, a_0, b_0, eps, expr):
-    #{
-        x = symbols("x");
-        self.func = sympify(expr);
-        self.a_0 = a_0;
-        self.b_0 = b_0;
-        self.eps = eps;
-        f=self.func
-        self.sym_df = [
-            f, 
-            diff(f, x), 
-            diff(f, x, 2)
-        ];
+# ===================================================================================
+# Code cho phương pháp newton (phương pháp tiếp tuyến)
+# Input : f(x) trong pt f(x)=0; khoảng cách ly ban đầu (a,b); sai số epsilon
+# Output: nghiệm gần đúng và bảng lặp
+# ===================================================================================
+
+# NOTE:
+# Các hàm kiểm tra dùng lại của phương pháp dây cung vẫn được sử dụng
+# Dùng kiểm tra dấu gần đúng (numeric) thay cho solveset().
+# → Hoạt động tốt hơn với các hàm siêu việt: exp, sin, cos, tan, log...
+#   (những trường hợp Sympy khó giải đạo hàm tường minh).
+#
+# → Không ảnh hưởng đáng kể với:
+#   - đa thức
+#   - phân thức đơn giản
+#   - các bài Sympy giải được trước đó
+#
+# Lý do:
+# solveset() chỉ hiệu quả khi phương trình đạo hàm đơn giản,
+# còn với các hàm như:
+#   E**x - cos(2*x), sin(x) - x/2, exp(x) + log(x) - 3, x - tan(x)
+# thì thường "không kết luận được", khiến code loại sai khoảng nghiệm.
+#
+# Đánh đổi:
+# chuyển từ kiểm tra ký hiệu (exact) → kiểm tra số học (approx),
+# nhưng đây là cách phổ biến và chấp nhận được trong giải tích số.
+#
+# Kết quả:
+# code chạy ổn định hơn với nhiều loại hàm (đặc biệt hàm siêu việt).
+# ===================================================================================
+
+class Newton_class:
+    def __init__ (self, expr, a, b, eps):
+
+        self.x = symbols("x")
+
+        self.expr = sympify(expr)
+        self.f = lambdify(self.x, self.expr, "numpy")
+        self.a = a
+        self.b = b
+        self.eps = eps
+
+        self.expr_df = diff(self.expr, self.x)
+        self.expr_d2f = diff(self.expr, self.x, 2)
+        self.f1 = lambdify(self.x, self.expr_df, "numpy")
+        self.f2 = lambdify(self.x, self.expr_d2f, "numpy")
         
-        self.df = [
-            lambdify(x, self.sym_df[0], "math"),
-            lambdify(x, self.sym_df[1], "math"),
-            lambdify(x, self.sym_df[2], "math"),
-        ];
-        # print(self.sym_df, file=sys.stderr);
-    #}
+        self.rows = [] # Kết quả các lần lặp
+        self.df = None
 
-    # Tìm max/min của f
-    def __Kiem_tra_don_dieu(self):
-    #{
-        x = symbols("x");
-        a = self.a_0;
-        b = self.b_0;
-        sol_set = solveset(diff(self.func, x ), x, Interval(a, b))
-        sol_set = Union(sol_set, solveset(diff(self.func, x, 2), x, Interval(a, b)));
-        if(sol_set.is_empty): 
-            return 1
-        else: 
+
+    def __no_sign_change(self, expr, a, b):
+        """
+        Kiểm tra biểu thức expr có không đổi dấu trên khoảng (a,b) hay không.
+
+        Ý tưởng:
+        - Giải phương trình expr = 0 trên đoạn [a,b]
+        - Nếu có nghiệm nằm trong khoảng mở (a,b) thì expr có thể đổi dấu
+          hoặc chạm 0 trong khoảng => không thỏa điều kiện giữ dấu nghiêm ngặt
+        - Nếu không có nghiệm trong (a,b) thì expr không đổi dấu trên (a,b)
+          (với giả thiết hàm liên tục)
+        
+        Giá trị trả về:
+        - True  : expr không đổi dấu trên (a,b)
+        - False : expr có nghiệm trong (a,b), không giữ dấu nghiêm ngặt
+        - None  : Sympy không kết luận chắc chắn được
+        """
+
+        x = self.x
+
+        # Giải phương trình expr = 0 trên đoạn [a,b]
+        sol = solveset(expr, x, domain=Interval(a, b))
+
+        # Nếu tập nghiệm là hữu hạn, duyệt từng nghiệm
+        if sol.is_FiniteSet:
+            for r in sol:
+                r_val = float(N(r))
+
+                # Nếu có nghiệm nằm trong khoảng mở (a,b)
+                # thì expr không giữ dấu nghiêm ngặt trên khoảng
+                if a < r_val < b:
+                    return False
+
+            # Không có nghiệm nào trong (a,b)
+            return True
+
+        # Nếu hoàn toàn không có nghiệm trên [a,b]
+        if sol == EmptySet:
+            return True
+
+        # Trường hợp Sympy không giải được rõ ràng
+        return None
+
+    def __get_sign_numeric(self, expr, a, b, N=1000, tol=1e-12):
+        g = lambdify(self.x, expr, "numpy")
+        xs = np.linspace(a, b, N + 2)[1:-1]
+
+        try:
+            vals = np.array(g(xs), dtype=float)
+        except Exception:
+            return None
+
+        if np.any(np.isnan(vals)) or np.any(np.isinf(vals)):
+            return None
+
+        if np.any(np.abs(vals) <= tol):
             return 0
-    #}
 
-    # Chốt 141
-    def __checkInputValidity(self):
-    #{
-        a = self.a_0;
-        b = self.b_0;
-        f = self.df[0];
-        
-        # Check if f(a) * f(b) < 0
-        if (f(a)==0):
-            print(f"Phương trình có nghiệm đúng x={a}")
-            return 0;
-        if (f(b)==0):
-            print(f"Phương trình có nghiệm đúng x={b}")
-            return 0;  
-        if(f(a) * f(b) > 0): 
-        #{
-            print(f(a)," ",f(b))
-            print("Khoảng cách ly không hợp lệ, không tồn tại nghiệm duy nhất");
-            return 0;
-        #}
+        if np.all(vals > 0):
+            return 1
+        if np.all(vals < 0):
+            return -1
+        return 0
 
-        if(self.__Kiem_tra_don_dieu()==0): 
-        #{
-            print("Khoảng cách ly không hợp lệ, không thỏa mãn điều kiện hội tụ");
-            return 0;
-        #}
-    #}
+    def __get_sign(self, expr, a, b):
+        """
+        Xác định dấu của expr trên khoảng (a,b), sau khi kiểm tra expr không đổi dấu.
 
+        Ý tưởng:
+        - Gọi __no_sign_change(expr, a, b) để kiểm tra expr có giữ dấu không
+        - Nếu giữ dấu, chỉ cần lấy một điểm bất kỳ trong (a,b), thường là trung điểm,
+          để xác định expr dương hay âm
+        - Nếu giá trị tại trung điểm > 0 => expr dương trên (a,b)
+        - Nếu giá trị tại trung điểm < 0 => expr âm trên (a,b)
 
-    def __Daycung(self):
-    #{
+        Giá trị trả về:
+        -  1   : expr > 0 trên (a,b)
+        - -1   : expr < 0 trên (a,b)
+        -  0   : expr không giữ dấu hoặc chạm 0 trong khoảng
+        - None : không kết luận được
+        """
 
-        eps = self.eps
-        a = self.a_0
-        b = self.b_0
-        
-        f = self.df[0]
-        f1 = self.df[1]
-        f2 = self.df[2]
+        # Kiểm tra trước xem expr có không đổi dấu không
+        ok = self.__no_sign_change(expr, a, b)
 
-        if ((f1(a)>0 and f2(a)>0) or (f1(a)<0 and f2(a)<0)):
-            d=b
-            x=a
+        if ok is False:
+            return 0
+
+        if ok is None:
+            return None
+
+        # Lấy trung điểm để xác định dấu
+        mid = (a + b) / 2
+        val = float(expr.subs(self.x, mid).evalf())
+
+        if val > 0:
+            return 1
+
+        if val < 0:
+            return -1
+
+        # Trường hợp trung điểm đúng bằng 0: rất hiếm, nhưng để an toàn
+        return 0
+
+    def __check(self, a, b):
+        """
+        Kiểm tra điều kiện đầu vào của bài toán trên khoảng [a,b].
+
+        Các điều kiện kiểm tra:
+        1. Nếu f(a)=0 hoặc f(b)=0 thì nghiệm đúng chính là đầu mút
+        2. Phải có f(a)*f(b) < 0 để [a,b] là khoảng cách ly nghiệm
+        3. f'(x) không đổi dấu trên (a,b) để đảm bảo tính đơn điệu
+        4. f''(x) không đổi dấu trên (a,b) để thỏa điều kiện hội tụ
+           cho phương pháp dây cung / tiếp tuyến
+
+        Giá trị trả về:
+        - a hoặc b : nếu đầu mút là nghiệm đúng
+        - True     : nếu khoảng hợp lệ
+        - None     : nếu khoảng không hợp lệ
+        """
+
+        f = self.f
+
+        if f(a) == 0:
+            print(f"Phương trình có nghiệm đúng x = {a}")
+            return a
+
+        if f(b) == 0:
+            print(f"Phương trình có nghiệm đúng x = {b}")
+            return b
+
+        if f(a) * f(b) >= 0:
+            print("Khoảng cách ly không hợp lệ: f(a)*f(b) >= 0")
+            return None
+
+        # Kiểm tra f'(x)
+        sign_df = self.__get_sign_numeric(self.expr_df, a, b)
+        if sign_df == 0:
+            print("f'(x) không giữ dấu nghiêm ngặt trên (a,b)")
+            return None
+        if sign_df is None:
+            print("Không kết luận chắc chắn được dấu của f'(x) trên (a,b)")
+            return None
+
+        # Kiểm tra f''(x)
+        sign_d2f = self.__get_sign_numeric(self.expr_d2f, a, b)
+        if sign_d2f == 0:
+            print("f''(x) không giữ dấu nghiêm ngặt trên (a,b)")
+            return None
+        if sign_d2f is None:
+            print("Không kết luận chắc chắn được dấu của f''(x) trên (a,b)")
+            return None
+
+        return True
+    def show_derivative_info(self):
+        """
+        In thông tin dấu của f'(x) và f''(x) trên khoảng (a,b).
+        Hàm này chỉ để quan sát, không phải hàm kiểm tra chính.
+        """
+
+        sign_df = self.__get_sign_numeric(self.expr_df, self.a, self.b)
+        sign_d2f = self.__get_sign_numeric(self.expr_d2f, self.a, self.b)
+
+        if sign_df == 1:
+            print("f'(x) > 0 trên (a,b)")
+        elif sign_df == -1:
+            print("f'(x) < 0 trên (a,b)")
+        elif sign_df == 0:
+            print("f'(x) không giữ dấu trên (a,b)")
         else:
-            d=a
-            x=b
-        x_pre=-1000
-        Min=min(abs(f1(a)),abs(f1(b)))
-        Max=max(abs(f1(a)),abs(f1(b)))
-        xi=(Max-Min)/Min
+            print("Không kết luận được dấu của f'(x)")
 
-        while (abs(x-x_pre)*xi> eps):
-            x_pre=x
-            x=x_pre - (d-x_pre)/(f(d)-f(x_pre))*f(x_pre)
-        return x
+        if sign_d2f == 1:
+            print("f''(x) > 0 trên (a,b)")
+        elif sign_d2f == -1:
+            print("f''(x) < 0 trên (a,b)")
+        elif sign_d2f == 0:
+            print("f''(x) không giữ dấu trên (a,b)")
+        else:
+            print("Không kết luận được dấu của f''(x)")
 
-    def Solve(self):
-        if(self.__checkInputValidity() == 0):
-            print("Vui lòng nhập lại dữ liệu", file=sys.stderr);
-            exit(0)
-        return self.__Daycung();
+# sử dụng sai số hậu nghiệm/ sai số mục tiêu/ sai số theo phần dư để dừng thuật toán.
+# |x_n - x*| <= |f(x_n)| / m1 <= eps
+# với m1 = min |f'(x)| trên [a,b]
+    def solve_ver1(self):       
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        f1 = self.f1
+        f2 = self.f2    
+        self.rows = []
+        self.df = None
 
-#===================================================================================
-# Chương trình chính
+        # Kiểm tra điều kiện đầu vào
+        check = self.__check(a, b)
+        if check is None:       
+            print("Khoảng không hợp lệ, không thể giải.")
+            return None
+        if check is not True:
+            return check # Trả về nghiệm đúng nếu có
+        
+        # Lấy dấu của f"
+        sign_d2f = self.__get_sign_numeric(self.expr_d2f, a, b)
+        if sign_d2f is None or sign_d2f == 0:
+            print("Không xác định được dấu không đổi của f''(x) trên (a,b).")
+            return None
+        
+        # Chọn x0 đúng theo thuật toán:
+        # nếu f(a) * sign(f'') > 0 thì x0 = a, ngược lại x0 = b
+        if f(a) * sign_d2f > 0:
+            x_old = a 
+        else:
+            x_old = b
 
-expr = "E**x - cos(2*x)"
-L = -0.5
-R = -0.4
-eps = 5e-5
+        # Lưu giá trị ban đầu x0
+        self.rows.append({
+            "k": 0,
+            "x_k": x_old,
+            "f(x_k)": f(x_old)
+        })
 
-uu = daycung_oop(L, R, eps, expr)
-print(f"Nghiệm của phương trình {expr} trên khoảng [{L}, {R}] là: {uu.Solve()}")
+        m1 = min(abs(f1(a)), abs(f1(b)))
+        if m1 == 0:
+            print("m1 = 0 nên không áp dụng được đánh giá sai số hậu nghiệm.")
+            return None
+
+        k = 1
+
+        while(True):
+            f1_old = f1(x_old)
+
+            x_new = x_old - f(x_old) / f1_old
+
+            self.rows.append({
+                "k": k,
+                "x_k": x_new,
+                "f(x_k)": f(x_new)
+            })
+
+            if abs(f(x_new)) / m1 <= eps:
+                self.df = pd.DataFrame(self.rows)
+                return x_new
+
+            else:
+                x_old = x_new
+                k += 1
+
+# Newton - dùng CT sai số theo hai xấp xỉ liên tiếp:
+# |x_n - alpha| <= (M2 / (2*m1)) * |x_n - x_{n-1}|^2 <= eps 
+# Nên ưu tiên sử dụng loại sai số này trong nhiều trường hợp vì nó thường chặt hơn sai số hậu nghiệm đơn thuần.
+ 
+
+    def solve_ver2(self):
+        
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        f1 = self.f1
+        f2 = self.f2    
+        self.rows = []
+        self.df = None
+
+        # Kiểm tra điều kiện đầu vào
+        check = self.__check(a, b)
+        if check is None:       
+            print("Khoảng không hợp lệ, không thể giải.")
+            return None
+        if check is not True:
+            return check # Trả về nghiệm đúng nếu có
+        
+        # Lấy dấu của f''(x) theo đúng logic kiểm tra hiện tại
+        sign_d2f = self.__get_sign_numeric(self.expr_d2f, a, b)
+        if sign_d2f is None or sign_d2f == 0:
+            print("Không xác định được dấu không đổi của f''(x) trên (a,b).")
+            return None
+
+        if f(a) * sign_d2f > 0:
+            x_old = a 
+        else:
+            x_old = b
+
+        # Lưu giá trị ban đầu x0
+        self.rows.append({
+            "k": 0,
+            "x_k": x_old,
+            "|x_k - x_{k-1}|": 0
+        })
+
+        k = 1
+
+        m1 = min(abs(f1(a)), abs(f1(b)))
+        M1 = max(abs(f1(a)), abs(f1(b)))
+
+        xi = (M1 - m1)/ m1 
+        bounded = eps / xi
+
+
+        while(True):
+            f1_old = f1(x_old)
+
+            x_new = x_old - f(x_old) / f1_old
+
+            delta = abs(x_new - x_old)
+            est_error = (M2 / (2 * m1)) * (delta ** 2)
+
+            self.rows.append({
+                "k": k,
+                "x_k": x_new,
+                "|x_k - x_{k-1}|": delta
+            })
+
+            if est_error <= eps:
+                self.df = pd.DataFrame(self.rows)
+                return x_new
+
+            else:
+                x_old = x_new
+                k += 1
+
+""" ===================================================================================
+
+Mẫu chạy chương trình
+
+# Đặt biểu thức
+expr = "x**3 - x - 2"
+
+# Đặt khoảng cách ly [a, b]
+a = 1
+b = 2
+
+# Đặt sai số
+eps = 5e-4
+
+# Tạo đối tượng
+solver = Secant_class(expr, a, b, eps)
+
+# Có thể xem trước dấu của đạo hàm cấp 1 và cấp 2 trên khoảng
+solver.show_derivative_info()
+
+# Giải phương trình bằng phương pháp dây cung - phiên bản 1
+root = solver.solve_ver1()
+
+# In kết quả
+print("Kết quả:", root)
+
+# In bảng lặp với làm tròn 6 chữ số sau dấu phẩy
+print("\nBảng các lần lặp:")
+pd.set_option('display.float_format', '{:.6f}'.format)
+print(solver.df.round(6))
+
+# Hằng số e trong sympy là exp(1) hoặc E, nên nếu muốn dùng e trong biểu thức
+# thì phải viết là exp(1) hoặc E, không được viết là e như trong math.
+# Ví dụ: expr = "exp(1)**x - cos(2*x)" hoặc expr = "E**x - cos(2*x)"
+
+=================================================================================== """
+
+expr = "E**(-x) - 1"
+a = -0.01
+b = 0.01
+eps = 5e-4
+
+solver = Secant_class(expr, a, b, eps)
+
+# Có thể xem trước dấu của đạo hàm cấp 1 và cấp 2 trên khoảng
+solver.show_derivative_info()
+
+# Giải phương trình bằng phương pháp dây cung - phiên bản 2
+root = solver.solve_ver2()
+
+# In kết quả
+print("Kết quả:", root)
+
+# In bảng lặp với làm tròn chữ số sau dấu phẩy
+print("\nBảng các lần lặp:")
+pd.set_option('display.float_format', '{:.3f}'.format)
+if solver.df is not None:
+    print(solver.df.round(3))
+else:
+    print("Không có bảng lặp vì thuật toán chưa chạy hoặc đã dừng sớm.")

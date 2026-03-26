@@ -389,10 +389,10 @@ print(solver.df.round(6))
 
 =================================================================================== """
 
-expr = "E**x - cos(2*x)"
-a = -0.5
-b = -0.4
-eps = 5e-5
+expr = "E**(-x) - 1"
+a = -0.01
+b = 0.01
+eps = 5e-4
 
 solver = Secant_class(expr, a, b, eps)
 
@@ -407,8 +407,8 @@ print("Kết quả:", root)
 
 # In bảng lặp với làm tròn chữ số sau dấu phẩy
 print("\nBảng các lần lặp:")
-pd.set_option('display.float_format', '{:.4f}'.format)
+pd.set_option('display.float_format', '{:.3f}'.format)
 if solver.df is not None:
-    print(solver.df.round(4))
+    print(solver.df.round(3))
 else:
     print("Không có bảng lặp vì thuật toán chưa chạy hoặc đã dừng sớm.")

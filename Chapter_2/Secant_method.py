@@ -349,11 +349,10 @@ print(solver.df.round(6))
 
 =================================================================================== """
 
-expr = "E**x - cos(2*x)"
-a = -0.5
-b = -0.4
-eps = 5e-5
-
+expr = "x**5 - 3*x**3 + 2*x**2 - x + 5"
+a = -2.2
+b = -2
+eps = 5e-4
 solver = Secant_class(expr, a, b, eps)
 
 # Có thể xem trước dấu của đạo hàm cấp 1 và cấp 2 trên khoảng
@@ -367,5 +366,5 @@ print("Kết quả:", root)
 
 # In bảng lặp với làm tròn chữ số sau dấu phẩy
 print("\nBảng các lần lặp:")
-pd.set_option('display.float_format', '{:.4f}'.format)
-print(solver.df.round(4))
+pd.set_option('display.float_format', '{:.3f}'.format)
+print(solver.df.round(3))
