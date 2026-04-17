@@ -212,7 +212,7 @@ class Secant_class:
         if check is not True:
             return check # Trả về nghiệm đúng nếu có
         
-        if f(a) * f2(a) > 0:
+        if f(a) * f2(a) < 0:
             x_old = a 
             d = b #điểm neo
         else:
