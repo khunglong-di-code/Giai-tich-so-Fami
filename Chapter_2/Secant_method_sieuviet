@@ -252,7 +252,7 @@ class Secant_class:
         if check is not True:
             return check # Trả về nghiệm đúng nếu có
         
-        if f(a) * f2(a) > 0:
+        if f(a) * f2(a)  < 0:
             x_old = a 
             d = b #điểm neo
         else:
@@ -389,7 +389,7 @@ print(solver.df.round(6))
 
 =================================================================================== """
 
-expr = "E**(-x) - 1"
+expr = "E**(-x) - x"
 a = -0.01
 b = 0.01
 eps = 5e-4

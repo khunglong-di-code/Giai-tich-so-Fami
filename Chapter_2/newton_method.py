@@ -346,11 +346,7 @@ class Newton_class:
         k = 1
 
         m1 = min(abs(f1(a)), abs(f1(b)))
-        M1 = max(abs(f1(a)), abs(f1(b)))
-
-        xi = (M1 - m1)/ m1 
-        bounded = eps / xi
-
+        M2 = max(abs(f2(a)), abs(f2(b)))
 
         while(True):
             f1_old = f1(x_old)
@@ -411,17 +407,18 @@ print(solver.df.round(6))
 
 =================================================================================== """
 
-expr = "E**(-x) - 1"
-a = -0.01
-b = 0.01
+expr = "E**(-x) - x"
+a = 0.4
+b = 0.8
+
 eps = 5e-4
 
-solver = Secant_class(expr, a, b, eps)
+solver = Newton_class(expr, a, b, eps)
 
 # Có thể xem trước dấu của đạo hàm cấp 1 và cấp 2 trên khoảng
 solver.show_derivative_info()
 
-# Giải phương trình bằng phương pháp dây cung - phiên bản 2
+# Giải phương trình bằng phương pháp newton 
 root = solver.solve_ver2()
 
 # In kết quả
@@ -429,8 +426,8 @@ print("Kết quả:", root)
 
 # In bảng lặp với làm tròn chữ số sau dấu phẩy
 print("\nBảng các lần lặp:")
-pd.set_option('display.float_format', '{:.3f}'.format)
+pd.set_option('display.float_format', '{:.4f}'.format)
 if solver.df is not None:
-    print(solver.df.round(3))
+    print(solver.df.round(4))
 else:
     print("Không có bảng lặp vì thuật toán chưa chạy hoặc đã dừng sớm.")
