@@ -37,4 +37,32 @@ Khi sử dụng SymPy để xử lý biểu thức toán học trong code (như 
   - Phức tạp: `"sin(x) - x/2"` hoặc `"x - tan(x)"`
 
 
+## Các phương pháp và file trong Chapter 2
+
+### Phương pháp chia đôi (Bisection_method.py)
+- **solve_ver0_tiennghiem()**: Tính trước số lần lặp n dựa trên sai số tiên nghiệm (log2((b-a)/ε)), lặp đúng n lần.
+- **solve_ver1_tuyetdoi()**: Dùng sai số hậu nghiệm tuyệt đối |x_n - x_{n-1}| ≤ ε.
+- **solve_ver1_tuongdoi()**: Dùng sai số hậu nghiệm tương đối |(x_n - x_{n-1})/x_n| ≤ ε.
+- **solve_ver2_tuyetdoi()**: Dừng khi độ rộng khoảng (b - a) ≤ ε.
+
+### Phương pháp dây cung (Secant_method_sieuviet.py)
+- **solve_ver1_tuyetdoi()**: Dùng sai số hậu nghiệm |f(x_n)| / m1 ≤ ε (m1 = min |f'(x)| trên [a,b]).
+- **solve_ver2_tuyetdoi()**: Dùng sai số hậu nghiệm |(M1 - m1)/m1| * |x_n - x_{n-1}| ≤ ε (M1 = max |f'(x)| trên [a,b]).
+- **solve_ver2_tuongdoi()**: Dùng sai số hậu nghiệm tương đối |(x_n - x_{n-1})/x_n| ≤ ε / xi (xi = (M1 - m1)/m1).
+
+### Phương pháp Newton (newton_method.py)
+- **solve_ver1()**: Dùng sai số hậu nghiệm |f(x_n)| / m1 ≤ ε (m1 = min |f'(x)| trên [a,b]).
+- **solve_ver2_tuyetdoi()**: Dùng sai số hậu nghiệm (M2 / (2*m1)) * |x_n - x_{n-1}|^2 ≤ ε (M2 = max |f''(x)| trên [a,b]).
+- **solve_ver2_tuongdoi()**: Dùng sai số hậu nghiệm tương đối |(x_n - x_{n-1})/x_n| ≤ ε / xi (xi = (M1 - m1)/m1).
+
+
+### Phương pháp lặp đơn (Simple_iteration_method.py)
+Phương pháp biến đổi f(x) = 0 thành x = g(x), rồi lặp x_{k+1} = g(x_k) cho đến hội tụ. Yêu cầu g(x) là ánh xạ co (q = max |g'(x)| < 1 trên [a,b]) và g([a,b]) ⊂ [a,b].
+
+**Chú ý đầu vào**: Người dùng phải tự tìm và nhập g(x) sao cho thỏa điều kiện co (không phải code tự động biến đổi). Nếu không, phương pháp không hội tụ.
+
+- **solve_tien_nghiem()**: Tính trước số lần lặp n dựa trên sai số tiên nghiệm (q^n / (1-q) * |x1 - x0| ≤ ε), lặp đúng n lần.
+- **solve_hau_nghiem()**: Dùng sai số hậu nghiệm (q / (1-q)) * |x_n - x_{n-1}| ≤ ε, lặp cho đến thỏa.
+
+Tất cả phương thức đều trả về nghiệm gần đúng và bảng lặp (DataFrame), với kiểm tra khoảng hợp lệ và xử lý trường hợp đặc biệt.
 
