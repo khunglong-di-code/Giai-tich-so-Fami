@@ -50,13 +50,13 @@ Khi sử dụng SymPy để xử lý biểu thức toán học trong code (như 
 - **solve_ver2_tuyetdoi()**: Dùng sai số hậu nghiệm |(M1 - m1)/m1| * |x_n - x_{n-1}| ≤ ε (M1 = max |f'(x)| trên [a,b]).
 - **solve_ver2_tuongdoi()**: Dùng sai số hậu nghiệm tương đối |(x_n - x_{n-1})/x_n| ≤ ε / xi (xi = (M1 - m1)/m1).
 
-### Phương pháp Newton (newton_method.py)
+### Phương pháp Newton (Newton_method.py)
 - **solve_ver1()**: Dùng sai số hậu nghiệm |f(x_n)| / m1 ≤ ε (m1 = min |f'(x)| trên [a,b]).
 - **solve_ver2_tuyetdoi()**: Dùng sai số hậu nghiệm (M2 / (2*m1)) * |x_n - x_{n-1}|^2 ≤ ε (M2 = max |f''(x)| trên [a,b]).
 - **solve_ver2_tuongdoi()**: Dùng sai số hậu nghiệm tương đối |(x_n - x_{n-1})/x_n| ≤ ε / xi (xi = (M1 - m1)/m1).
 
 
-### Phương pháp lặp đơn (Simple_iteration_method.py)
+### Phương pháp lặp đơn (Fixed_point_iteration.py)
 Phương pháp biến đổi f(x) = 0 thành x = g(x), rồi lặp x_{k+1} = g(x_k) cho đến hội tụ. Yêu cầu g(x) là ánh xạ co (q = max |g'(x)| < 1 trên [a,b]) và g([a,b]) ⊂ [a,b].
 
 **Chú ý đầu vào**: Người dùng phải tự tìm và nhập g(x) sao cho thỏa điều kiện co (không phải code tự động biến đổi). Nếu không, phương pháp không hội tụ.
