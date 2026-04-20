@@ -15,7 +15,6 @@ import pandas as pd
 #
 #===================================================================================
 
-
 class Bisection_class:
     def __init__(self, expr, a, b, eps):
         self.expr = sympify(expr)
@@ -25,9 +24,63 @@ class Bisection_class:
         self.eps = eps
         self.rows = [] # Kết quả các lần lặp
         self.df = None
-    
-    # Method theo Sai số: Hậu nghiệm |x_n - x_{n-1}| ≤ ε (cái này thường không chặt bằng cái thứ 2)
-    def solve_ver1(self):
+
+# Method theo Sai số: Tiên nghiệm - Tính trước số lần lặp n = ceil(log2((b - a) / eps)), rồi lặp đúng n lần
+    def solve_ver0_tiennghiem(self):
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        self.rows = []
+        self.df = None
+
+        if f(a) == 0:
+            print(f"Phương trình có nghiệm đúng x = {a}")
+            return a
+
+        if f(b) == 0:
+            print(f"Phương trình có nghiệm đúng x = {b}")
+            return b
+
+        if f(a) * f(b) >= 0:
+            print("Khoảng cách li nghiệm không hợp lệ")
+            return None
+        
+        # Tính số lần lặp tiên nghiệm
+        import math
+        n = math.ceil(math.log2((b - a) / eps))
+        print(f"Số lần lặp tiên nghiệm: {n}")
+
+        k = 1
+        while k <= n:
+            x = (a + b) / 2
+            fx = f(x)
+
+            sign_fx = "+" if fx > 0 else "-" if fx < 0 else "0"
+
+            self.rows.append({
+                "k": k,
+                "a(k)": a,
+                "b(k)": b,
+                "xk": x,
+                "sgn(f(xk))": sign_fx
+            })
+
+            if fx == 0:
+                return x
+            elif f(a) * fx < 0:
+                b = x
+            else:
+                a = x
+
+            k += 1
+
+        x_final = (a + b) / 2
+        self.df = pd.DataFrame(self.rows)
+        return x_final
+
+    # Method theo Sai số: Hậu nghiệm |x_n - x_{n-1}| ≤ ε sai số giữa hai lần lặp liên tiếp (cái này thường không chặt bằng cái thứ 2)
+    def solve_ver1_tuyetgdoi(self):
         a = self.a
         b = self.b
         eps = self.eps
@@ -88,8 +141,72 @@ class Bisection_class:
             x_old = x_new        
             k += 1
 
-    # Method theo Sai số: Hậu nghiệm |x_n - x_{n-1}| ≤ ε
-    def solve_ver2(self):
+# Method theo Sai số: Hậu nghiệm tương đối |(x_n - x_{n-1}) / x_n| ≤ ε
+    def solve_ver1_tuongdoi(self):
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        self.rows = []
+        self.df = None
+
+        if f(a) == 0:
+            print(f"Phương trình có nghiệm đúng x = {a}")
+            return a
+
+        if f(b) == 0:
+            print(f"Phương trình có nghiệm đúng x = {b}")
+            return b
+
+        if f(a) * f(b) >= 0:
+            print("Khoảng cách li nghiệm không hợp lệ")
+            return None
+        
+        x_old = (a + b) / 2
+        k = 1
+
+        while True:
+            # Tính f(x_old) và xác định dấu của nó cho bảng
+            fx_old = f(x_old)
+
+            if fx_old > 0:
+                sign_fx = "+"
+            elif fx_old < 0:
+                sign_fx = "-"
+            else:
+                sign_fx = "0"
+
+            self.rows.append({
+                "k": k,
+                "a(k-1)": a,
+                "b(k-1)": b,
+                "xk": x_old,
+                "sgn(f(xk))": sign_fx,
+                "|(x_k - x_{k-1})/x_k|": 0 if k == 1 else abs((x_old - (a + b) / 2) / x_old) if x_old != 0 else float('inf')  # Sai số tương đối
+            })
+
+            # phần thuật toán chính (tính sai số tương đối)
+
+            if f(a) * f(x_old) < 0:
+                b = x_old
+            elif f(a) * f(x_old) > 0:
+                a = x_old
+            else:
+                print(f"Phương trình có nghiệm đúng x = {x_old}")
+                return x_old
+    
+            x_new = (a + b) / 2
+            rel_delta = abs((x_new - x_old) / x_new) if x_new != 0 else float('inf')
+
+            if rel_delta <= eps:
+                self.df = pd.DataFrame(self.rows) 
+                return x_new
+            
+            x_old = x_new        
+            k += 1
+
+    # Method theo Sai số: Hậu nghiệm |x_n - x_{n-1}| ≤ ε Dừng khi độ rộng khoảng (b - a) ≤ ε
+    def solve_ver2_tuyetdoi(self):
         a = self.a
         b = self.b
         eps = self.eps
@@ -137,9 +254,6 @@ class Bisection_class:
         return x_final
 
 
-
-
-
 """ ===================================================================================
 
 Mẫu chạy chương trình
@@ -176,7 +290,7 @@ b = -1.8
 eps = 5e-4
 
 solver = Bisection_class(expr, a, b, eps)
-root = solver.solve_ver2()
+root = solver.solve_ver0_tiennghiem()
 
 print("Nghiệm gần đúng:", root)
 print("\nBảng các lần lặp:")
