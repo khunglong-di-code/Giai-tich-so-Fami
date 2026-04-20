@@ -194,7 +194,7 @@ class Secant_class:
             print("Không kết luận được dấu của f''(x)")
 
 # sử dụng sai số hậu nghiệm/ sai số mục tiêu/ sai số theo phần dư |x_n - x_{n-1}| ≤ |f(xn)|/min để dừng thuật toán.
-    def solve_ver1(self):       
+    def solve_ver1_tuyetdoi(self):       
         a = self.a
         b = self.b
         eps = self.eps
@@ -253,7 +253,7 @@ class Secant_class:
 # SỬ dụng sai số hậu nghiệm/ sai só theo hai lần lặp |(M1 - m1)/m1| * |x_n - x_{n-1}| ≤ ε để dừng thuật toán.
 # Nên ưu tiên sử dụng loại sai số này trong nhiều trường hợp vì nó thường chặt hơn sai số hậu nghiệm đơn thuần.
 
-    def solve_ver2(self):
+    def solve_ver2_tuyetdoi(self):
         
         a = self.a
         b = self.b

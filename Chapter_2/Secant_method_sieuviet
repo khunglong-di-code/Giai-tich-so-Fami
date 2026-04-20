@@ -234,7 +234,10 @@ class Secant_class:
             print("Không kết luận được dấu của f''(x)")
 
 # sử dụng sai số hậu nghiệm/ sai số mục tiêu/ sai số theo phần dư |x_n - x_{n-1}| ≤ |f(xn)|/min để dừng thuật toán.
-    def solve_ver1(self):       
+# ...existing code...
+
+# sử dụng sai số hậu nghiệm/ sai số mục tiêu/ sai số theo phần dư |x_n - x_{n-1}| ≤ |f(xn)|/min để dừng thuật toán.
+    def solve_ver1_tuyetdoi(self):       
         a = self.a
         b = self.b
         eps = self.eps
@@ -271,6 +274,13 @@ class Secant_class:
             print("m1 = 0 nên không áp dụng được đánh giá sai số hậu nghiệm.")
             return None
 
+        M1 = max(abs(f1(a)), abs(f1(b)))  # Thêm M1 cho nhất quán
+
+        # In ra d, m1, M1
+        print(f"d = {d}")
+        print(f"m1 = {m1}")
+        print(f"M1 = {M1}")
+
         k = 1
 
         while(True):
@@ -293,7 +303,7 @@ class Secant_class:
 # SỬ dụng sai số hậu nghiệm/ sai só theo hai lần lặp |(M1 - m1)/m1| * |x_n - x_{n-1}| ≤ ε để dừng thuật toán.
 # Nên ưu tiên sử dụng loại sai số này trong nhiều trường hợp vì nó thường chặt hơn sai số hậu nghiệm đơn thuần.
 
-    def solve_ver2(self):
+    def solve_ver2_tuyetdoi(self):
         
         a = self.a
         b = self.b
@@ -334,6 +344,10 @@ class Secant_class:
         xi = (M1 - m1)/ m1 
         bounded = eps / xi
 
+        # In ra d, m1, M1
+        print(f"d = {d}")
+        print(f"m1 = {m1}")
+        print(f"M1 = {M1}")
 
         while(True):
             x_new = x_old - ((f(x_old) * (x_old - d)) / (f(x_old) - f(d)))
@@ -345,6 +359,70 @@ class Secant_class:
             })
 
             if abs(x_new - x_old) <= bounded:
+                self.df = pd.DataFrame(self.rows)
+                return x_new
+
+            else:
+                x_old = x_new
+                k += 1
+
+
+    def solve_ver2_tuongdoi(self):
+        
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        f1 = self.f1
+        f2 = self.f2    
+        self.rows = []
+        self.df = None
+
+        # Kiểm tra điều kiện đầu vào
+        check = self.__check(a, b)
+        if check is None:       
+            print("Khoảng không hợp lệ, không thể giải.")
+            return None
+        if check is not True:
+            return check # Trả về nghiệm đúng nếu có
+        
+        if f(a) * f2(a) > 0:
+            x_old = a 
+            d = b #điểm neo
+        else:
+            x_old = b
+            d = a #điểm neo
+
+        # Lưu giá trị ban đầu x0
+        self.rows.append({
+            "k": 0,
+            "x_k": x_old,
+            "|(x_k - x_{k-1})/x_k|": 0  # Thay đổi key để thống nhất với vòng lặp
+        })
+
+        k = 1
+
+        m1 = min(abs(f1(a)), abs(f1(b)))
+        M1 = max(abs(f1(a)), abs(f1(b)))
+
+        xi = (M1 - m1)/ m1 
+        bounded = eps / xi
+
+        # In ra d, m1, M1
+        print(f"d = {d}")
+        print(f"m1 = {m1}")
+        print(f"M1 = {M1}")
+
+        while(True):
+            x_new = x_old - ((f(x_old) * (x_old - d)) / (f(x_old) - f(d)))
+
+            self.rows.append({
+                "k": k,
+                "x_k": x_new,
+                "|(x_k - x_{k-1})/x_k|": abs((x_new - x_old)/x_new)
+            })
+
+            if abs((x_new - x_old)/x_new) <= bounded:
                 self.df = pd.DataFrame(self.rows)
                 return x_new
 
@@ -389,10 +467,10 @@ print(solver.df.round(6))
 
 =================================================================================== """
 
-expr = "E**(-x) - x"
-a = -0.01
-b = 0.01
-eps = 5e-4
+expr = "x**5 - 3*x**3 + 2*x**2 - x + 5"
+a = -3
+b = -2
+eps = 0.5e-3
 
 solver = Secant_class(expr, a, b, eps)
 
@@ -400,15 +478,16 @@ solver = Secant_class(expr, a, b, eps)
 solver.show_derivative_info()
 
 # Giải phương trình bằng phương pháp dây cung - phiên bản 2
-root = solver.solve_ver2()
+root = solver.solve_ver2_tuongdoi()
 
 # In kết quả
 print("Kết quả:", root)
 
 # In bảng lặp với làm tròn chữ số sau dấu phẩy
 print("\nBảng các lần lặp:")
-pd.set_option('display.float_format', '{:.3f}'.format)
+pd.set_option('display.float_format', '{:.7f}'.format)
+
 if solver.df is not None:
-    print(solver.df.round(3))
+    print(solver.df.round(7))
 else:
     print("Không có bảng lặp vì thuật toán chưa chạy hoặc đã dừng sớm.")

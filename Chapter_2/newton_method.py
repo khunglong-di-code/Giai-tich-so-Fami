@@ -234,6 +234,8 @@ class Newton_class:
         else:
             print("Không kết luận được dấu của f''(x)")
 
+# ...existing code...
+
 # sử dụng sai số hậu nghiệm/ sai số mục tiêu/ sai số theo phần dư để dừng thuật toán.
 # |x_n - x*| <= |f(x_n)| / m1 <= eps
 # với m1 = min |f'(x)| trên [a,b]
@@ -276,9 +278,16 @@ class Newton_class:
         })
 
         m1 = min(abs(f1(a)), abs(f1(b)))
+        M1 = max(abs(f1(a)), abs(f1(b)))  # Thêm M1 cho nhất quán
         if m1 == 0:
             print("m1 = 0 nên không áp dụng được đánh giá sai số hậu nghiệm.")
             return None
+
+        # In ra m1, M2, M1 (M2 không dùng, đặt 0)
+        M2 = 0  # Không dùng trong ver1
+        print(f"m1 = {m1}")
+        print(f"M2 = {M2}")
+        print(f"M1 = {M1}")
 
         k = 1
 
@@ -306,7 +315,7 @@ class Newton_class:
 # Nên ưu tiên sử dụng loại sai số này trong nhiều trường hợp vì nó thường chặt hơn sai số hậu nghiệm đơn thuần.
  
 
-    def solve_ver2(self):
+    def solve_ver2_tuyetdoi(self):
         
         a = self.a
         b = self.b
@@ -346,7 +355,13 @@ class Newton_class:
         k = 1
 
         m1 = min(abs(f1(a)), abs(f1(b)))
+        M1 = max(abs(f1(a)), abs(f1(b)))  # Thêm M1
         M2 = max(abs(f2(a)), abs(f2(b)))
+
+        # In ra m1, M2, M1
+        print(f"m1 = {m1}")
+        print(f"M2 = {M2}")
+        print(f"M1 = {M1}")
 
         while(True):
             f1_old = f1(x_old)
@@ -370,42 +385,78 @@ class Newton_class:
                 x_old = x_new
                 k += 1
 
-""" ===================================================================================
+# Newton - dùng sai số hậu nghiệm tương đối theo hai xấp xỉ liên tiếp:
+# |(x_n - x_{n-1}) / x_n| <= eps / xi, với xi = (M1 - m1)/m1
+    def solve_ver2_tuongdoi(self):
+        
+        a = self.a
+        b = self.b
+        eps = self.eps
+        f = self.f
+        f1 = self.f1
+        f2 = self.f2    
+        self.rows = []
+        self.df = None
 
-Mẫu chạy chương trình
+        # Kiểm tra điều kiện đầu vào
+        check = self.__check(a, b)
+        if check is None:       
+            print("Khoảng không hợp lệ, không thể giải.")
+            return None
+        if check is not True:
+            return check # Trả về nghiệm đúng nếu có
+        
+        # Lấy dấu của f''(x) theo đúng logic kiểm tra hiện tại
+        sign_d2f = self.__get_sign_numeric(self.expr_d2f, a, b)
+        if sign_d2f is None or sign_d2f == 0:
+            print("Không xác định được dấu không đổi của f''(x) trên (a,b).")
+            return None
 
-# Đặt biểu thức
-expr = "x**3 - x - 2"
+        if f(a) * sign_d2f > 0:
+            x_old = a 
+        else:
+            x_old = b
 
-# Đặt khoảng cách ly [a, b]
-a = 1
-b = 2
+        # Lưu giá trị ban đầu x0
+        self.rows.append({
+            "k": 0,
+            "x_k": x_old,
+            "|(x_k - x_{k-1})/x_k|": 0  # Thống nhất key
+        })
 
-# Đặt sai số
-eps = 5e-4
+        k = 1
 
-# Tạo đối tượng
-solver = Secant_class(expr, a, b, eps)
+        m1 = min(abs(f1(a)), abs(f1(b)))
+        M1 = max(abs(f1(a)), abs(f1(b)))
+        M2 = max(abs(f2(a)), abs(f2(b)))  # Tính M2 dù không dùng trực tiếp
 
-# Có thể xem trước dấu của đạo hàm cấp 1 và cấp 2 trên khoảng
-solver.show_derivative_info()
+        xi = (M1 - m1) / m1 if m1 != 0 else float('inf')
+        bounded = eps / xi if xi != float('inf') else 0
 
-# Giải phương trình bằng phương pháp dây cung - phiên bản 1
-root = solver.solve_ver1()
+        # In ra m1, M2, M1
+        print(f"m1 = {m1}")
+        print(f"M2 = {M2}")
+        print(f"M1 = {M1}")
 
-# In kết quả
-print("Kết quả:", root)
+        while(True):
+            f1_old = f1(x_old)
 
-# In bảng lặp với làm tròn 6 chữ số sau dấu phẩy
-print("\nBảng các lần lặp:")
-pd.set_option('display.float_format', '{:.6f}'.format)
-print(solver.df.round(6))
+            x_new = x_old - f(x_old) / f1_old
 
-# Hằng số e trong sympy là exp(1) hoặc E, nên nếu muốn dùng e trong biểu thức
-# thì phải viết là exp(1) hoặc E, không được viết là e như trong math.
-# Ví dụ: expr = "exp(1)**x - cos(2*x)" hoặc expr = "E**x - cos(2*x)"
+            self.rows.append({
+                "k": k,
+                "x_k": x_new,
+                "|(x_k - x_{k-1})/x_k|": abs((x_new - x_old) / x_new) if x_new != 0 else float('inf')  # Tránh chia 0
+            })
 
-=================================================================================== """
+            if abs((x_new - x_old) / x_new) <= bounded if x_new != 0 else False:
+                self.df = pd.DataFrame(self.rows)
+                return x_new
+
+            else:
+                x_old = x_new
+                k += 1
+#===================================================================================
 
 expr = "E**(-x) - x"
 a = 0.4
@@ -419,7 +470,7 @@ solver = Newton_class(expr, a, b, eps)
 solver.show_derivative_info()
 
 # Giải phương trình bằng phương pháp newton 
-root = solver.solve_ver2()
+root = solver.solve_ver1()
 
 # In kết quả
 print("Kết quả:", root)
