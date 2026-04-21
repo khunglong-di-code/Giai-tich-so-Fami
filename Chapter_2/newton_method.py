@@ -234,7 +234,17 @@ class Newton_class:
         else:
             print("Không kết luận được dấu của f''(x)")
 
-# ...existing code...
+    def show_expressions(self):
+        """
+        In các biểu thức hàm f(x), đạo hàm f'(x) và f''(x).
+        """
+        print("=" * 70)
+        print("BIỂU THỨC CÁC HÀM:")
+        print("=" * 70)
+        print(f"f(x)  = {self.expr}")
+        print(f"f'(x) = {self.expr_df}")
+        print(f"f''(x) = {self.expr_d2f}")
+        print("=" * 70)
 
 # sử dụng sai số hậu nghiệm/ sai số mục tiêu/ sai số theo phần dư để dừng thuật toán.
 # |x_n - x*| <= |f(x_n)| / m1 <= eps
@@ -459,26 +469,26 @@ class Newton_class:
 #===================================================================================
 
 expr = "E**(-x) - x"
-a = 0.4
-b = 0.8
+a = 0.5
+b = 1
 
 eps = 5e-4
 
 solver = Newton_class(expr, a, b, eps)
-
+solver.show_expressions()
 # Có thể xem trước dấu của đạo hàm cấp 1 và cấp 2 trên khoảng
 solver.show_derivative_info()
 
 # Giải phương trình bằng phương pháp newton 
-root = solver.solve_ver1()
+root = solver.solve_ver2_tuongdoi()
 
 # In kết quả
 print("Kết quả:", root)
 
 # In bảng lặp với làm tròn chữ số sau dấu phẩy
 print("\nBảng các lần lặp:")
-pd.set_option('display.float_format', '{:.4f}'.format)
+pd.set_option('display.float_format', '{:.8f}'.format)
 if solver.df is not None:
-    print(solver.df.round(4))
+    print(solver.df.round(8))
 else:
     print("Không có bảng lặp vì thuật toán chưa chạy hoặc đã dừng sớm.")
